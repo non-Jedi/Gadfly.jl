@@ -181,7 +181,7 @@ function render(geom::SubplotGrid, theme::Gadfly.Theme,
                            Gadfly.Aesthetics[layer_aes_grid[k][i, j]
                                              for k in 1:length(geom.layers)],
                            Gadfly.Data[layer_data_grid[k][i, j]
-                                       for k in 1:length(geom.layers)]...)
+                                       for k in 1:length(geom.layers)])
 
         for (k, stats) in enumerate(layer_stats)
             Stat.apply_statistics(stats, scales, coord, layer_aes_grid[k][i, j])
