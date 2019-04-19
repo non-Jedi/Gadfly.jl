@@ -76,7 +76,7 @@ function show(io::IO, data::Data)
     maxlen = 0
     print(io, "Data(")
     for name in fieldnames(Data)
-        if getfield(data, name) != nothing
+        if issomething(getfield(data, name))
             print(io, "\n  ", string(name), "=")
             show(io, getfield(data, name))
         end

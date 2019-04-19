@@ -99,7 +99,7 @@ function show(io::IO, data::Aesthetics)
     print(io, "Aesthetics(")
     for name in fieldnames(Aesthetics)
         val = getfield(data, name)
-        if !ismissing(val) && val != nothing
+        if !ismissing(val) && issomething(val)
             print(io, "\n  ", string(name), "=")
             show(io, getfield(data, name))
         end
@@ -137,7 +137,7 @@ getindex(aes::Aesthetics, i::Integer, j::AbstractString) = getfield(aes, Symbol(
 function defined_aesthetics(aes::Aesthetics)
     vars = Set{Symbol}()
     for name in fieldnames(Aesthetics)
-        getfield(aes, name) === nothing || push!(vars, name)
+        isnothing(getfield(aes, name)) || push!(vars, name)
     end
     vars
 end
@@ -169,7 +169,7 @@ function assert_aesthetics_undefined(who::AbstractString, aes::Aesthetics, vars:
 end
 
 function assert_aesthetics_equal_length(who::AbstractString, aes::Aesthetics, vars::Symbol...)
-    defined_vars = Compat.Iterators.filter(var -> !(getfield(aes, var) === nothing), vars)
+    defined_vars = Compat.Iterators.filter(var -> issomething(getfield(aes, var)), vars)
 
     if !isempty(defined_vars)
         n = length(getfield(aes, first(defined_vars)))
@@ -227,18 +227,9 @@ function concat(aess::Aesthetics...)
     cataes = Aesthetics()
     for aes in aess
         for var in fieldnames(Aesthetics)
-            if var in [:xviewmin, :yviewmin]
+            if var in [:xviewmin, :yviewmin, :xviewmax, :yviewmax]
                 mu, mv = getfield(cataes, var), getfield(aes, var)
-                setfield!(cataes, var,
-                          mu === nothing ? mv :
-                             mv == nothing ? mu :
-                                 min(mu, mv))
-            elseif var in [:xviewmax, :yviewmax]
-                mu, mv = getfield(cataes, var), getfield(aes, var)
-                setfield!(cataes, var,
-                          mu === nothing ? mv :
-                             mv == nothing ? mu :
-                                 max(mu, mv))
+                setfield!(cataes, var, isnothing(mu) ? mv : isnothing(mv) ? mu : min(mu, mv))
             else
                 setfield!(cataes, var,
                           cat_aes_var!(getfield(cataes, var), getfield(aes, var)))
@@ -310,13 +301,13 @@ end
 #
 function by_xy_group(aes::T, xgroup, ygroup,
                      num_xgroups, num_ygroups) where T <: Union{Data, Aesthetics}
-    @assert xgroup === nothing || ygroup === nothing || length(xgroup) == length(ygroup)
+    @assert isnothing(xgroup) || isnothing(ygroup) || length(xgroup) == length(ygroup)
 
     n = num_ygroups
     m = num_xgroups
 
-    xrefs = xgroup === nothing ? [1] : xgroup
-    yrefs = ygroup === nothing ? [1] : ygroup
+    xrefs = isnothing(xgroup) ? [1] : xgroup
+    yrefs = isnothing(ygroup) ? [1] : ygroup
 
     aes_grid = Array{T}(undef, n, m)
     staging = Array{AbstractArray}(undef, n, m)
@@ -324,7 +315,7 @@ function by_xy_group(aes::T, xgroup, ygroup,
         aes_grid[i, j] = T()
     end
 
-    xgroup === nothing && ygroup === nothing && return aes_grid
+    isnothing(xgroup) && isnothing(ygroup) && return aes_grid
 
     function make_pooled_array(::Type{IndirectArray{T,N,A,V}}, arr::AbstractArray) where {T,N,A,V}
         uarr = unique(arr)
@@ -347,8 +338,8 @@ function by_xy_group(aes::T, xgroup, ygroup,
 
         vals = getfield(aes, var)
         if typeof(vals) <: AbstractArray
-            if xgroup !== nothing && length(vals) !== length(xgroup) ||
-               ygroup !== nothing && length(vals) !== length(ygroup)
+            if issomething(xgroup) && length(vals) !== length(xgroup) ||
+               issomething(ygroup) && length(vals) !== length(ygroup)
                 continue
             end
 
@@ -402,12 +393,10 @@ function inherit!(a::Aesthetics, b::Aesthetics;
         bval = getfield(b, field)
         if field in clobber_set
             setfield!(a, field, bval)
-        elseif aval === missing || aval === nothing || aval === string || aval == showoff
+        elseif aval === missing || isnothing(aval) || aval === string || aval == showoff
             setfield!(a, field, bval)
-        elseif field == :xviewmin || field == :yviewmin
-            bval != nothing && (aval == nothing || aval > bval) && setfield!(a, field, bval)
-        elseif field == :xviewmax || field == :yviewmax
-            bval != nothing && (aval == nothing || aval < bval) && setfield!(a, field, bval)
+        elseif field in (:xviewmin, :yviewmin, :xviewmax, :yviewmax)
+            issomething(bval) && (isnothing(aval) || aval > bval) && setfield!(a, field, bval)
         elseif typeof(aval) <: Dict && typeof(bval) <: Dict
             merge!(aval, getfield(b, field))
         end
