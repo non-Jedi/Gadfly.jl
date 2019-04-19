@@ -453,13 +453,12 @@ DiscreteColorScale(f; levels=nothing, order=nothing, preserve_order=true) =
 
 element_aesthetics(scale::DiscreteColorScale) = [:color]
 
-default_discrete_colors(n) = convert(Vector{Color},
-        distinguishable_colors(n,
-                               [LCHab(70, 60, 240)],
-                               transform=c -> deuteranopic(c, 0.5),
-                               lchoices=Float64[65, 70, 75, 80],
-                               cchoices=Float64[0, 50, 60, 70],
-                               hchoices=range(0, stop=330, length=24)))
+default_discrete_colors(n) =
+    distinguishable_colors(n, [LCHab(70, 60, 240)],
+                           transform=c -> deuteranopic(c, 0.5),
+                           lchoices=Float64[65, 70, 75, 80],
+                           cchoices=Float64[0, 50, 60, 70],
+                           hchoices=range(0, stop=330, length=24))
 
 """
     color_discrete_hue[(f; levels=nothing, order=nothing, preserve_order=true)]
@@ -517,18 +516,14 @@ end
 
 function apply_scale(scale::DiscreteColorScale,
                      aess::Vector{Gadfly.Aesthetics}, datas::Vector{Gadfly.Data})
-    levelset = OrderedSet()
+    levelset = Any[]
     for (aes, data) in zip(aess, datas)
         isnothing(data.color) && continue
-        for d in data.color
-            # Remove missing values
-            # FixMe! The handling of missing values shouldn't be this scattered across the source
-            ismissing(d) || push!(levelset, d)
-        end
+        append!(levelset, skipmissing(data.color))
     end
 
     if isnothing(scale.levels)
-        scale_levels = [levelset...]
+        scale_levels = levelset
         scale.preserve_order || sort!(scale_levels)
     else
         scale_levels = scale.levels

@@ -386,7 +386,7 @@ function render_prepare(plot::Plot)
 
     # Process layers, filling inheriting mappings or data from the Plot where
     # they are missing.
-    datas = Array{Data}(undef, length(plot.layers))
+    datas = Vector{Data}(undef, length(plot.layers))
     for (i, layer) in enumerate(plot.layers)
         if isnothing(layer.data_source) && isempty(layer.mapping)
             layer.data_source = plot.data_source
